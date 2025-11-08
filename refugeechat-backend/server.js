@@ -17,39 +17,64 @@ const httpServer = http.createServer(app);
 
 connectDB();
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || "")
+// Enhanced CORS configuration
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
   .split(",")
   .map(origin => origin.trim())
   .filter(Boolean);
 
-const io = new Server(httpServer, {
-  cors: {
-    origin: allowedOrigins.length
-      ? allowedOrigins
-      : ["https://real-time-communication-with-socket-pink.vercel.app", "http://localhost:5173"],
-    credentials: true
-  }
-});
+// Add common development and production origins
+const defaultOrigins = [
+  "https://real-time-communication-with-socket-pink.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://real-time-communication-with-socket-io-jfaw.onrender.com"
+];
 
-const userPresence = new Map();
+const corsOrigins = allowedOrigins.length > 0 ? allowedOrigins : defaultOrigins;
 
-io.use(socketAuthMiddleware);
+console.log("🛡️  CORS allowed origins:", corsOrigins);
 
-const httpCorsOrigins = allowedOrigins.length
-  ? allowedOrigins
-  : ["https://real-time-communication-with-socket-pink.vercel.app", "http://localhost:5173"];
-
-const corsOptions = {
-  origin: httpCorsOrigins,
+// HTTP CORS middleware - apply to all routes
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, postman)
+    if (!origin) return callback(null, true);
+    
+    if (corsOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.warn(`🚫 CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
-};
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
+}));
 
-app.use(cors(corsOptions));
+// Handle preflight requests
+app.options('*', cors());
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+// Socket.IO configuration with enhanced CORS
+const io = new Server(httpServer, {
+  cors: {
+    origin: corsOrigins,
+    credentials: true,
+    methods: ["GET", "POST"]
+  },
+  transports: ['websocket', 'polling']
+});
+
+const userPresence = new Map();
+
+// Apply socket authentication
+io.use(socketAuthMiddleware);
+
+// Routes
 app.get("/", (req, res) => res.send("AREL TECH Chat API OK"));
 app.get("/healthz", (req, res) => res.json({ status: "ok" }));
 
@@ -57,71 +82,87 @@ app.use("/api/conversations", conversationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/users", userRoutes);
 
+// 404 handler
 app.use((req, res) => {
   res.status(404).json({ message: "Not Found" });
 });
 
-app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
+// Error handler
+app.use((err, req, res, next) => {
+  // CORS error handling
+  if (err.message === 'Not allowed by CORS') {
+    return res.status(403).json({ 
+      message: "CORS policy: Origin not allowed",
+      allowedOrigins: corsOrigins 
+    });
+  }
+
   const status = err.statusCode || 500;
   const response = {
     message: err.message || "Internal server error"
   };
+  
   if (process.env.NODE_ENV !== "production") {
     response.stack = err.stack;
   }
+  
   console.error("API error:", err);
   res.status(status).json(response);
 });
 
+// Socket.IO event handlers
 io.on("connection", (socket) => {
   const { userId } = socket.data;
+  console.log(`🔗 User ${userId} connected with socket ${socket.id}`);
+  
   if (userId) {
     userPresence.set(userId, socket.id);
     socket.join(userId);
+    
+    // Notify others that user came online
+    socket.broadcast.emit("user:online", { userId });
   }
-
-  // io.to(userId).emit("NewMessage", message)
 
   socket.on("conversation:join", (conversationId) => {
     if (conversationId) {
       socket.join(conversationId);
+      console.log(`User ${userId} joined conversation ${conversationId}`);
     }
   });
 
   socket.on("conversation:leave", (conversationId) => {
     if (conversationId) {
       socket.leave(conversationId);
+      console.log(`User ${userId} left conversation ${conversationId}`);
     }
   });
 
   socket.on("message:new", ({ conversationId, message }) => {
     if (conversationId && message) {
-      socket.to(conversationId).emit("message:new", { conversationId, message });
+      console.log(`New message in conversation ${conversationId} from user ${userId}`);
+      socket.to(conversationId).emit("message:new", { 
+        conversationId, 
+        message,
+        senderId: userId
+      });
     }
   });
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", (reason) => {
+    console.log(`🔌 User ${userId} disconnected: ${reason}`);
     if (userId) {
       userPresence.delete(userId);
+      // Notify others that user went offline
+      socket.broadcast.emit("user:offline", { userId });
     }
   });
 });
 
-const PORT = process.env.PORT || 5001;  // Changed to 5001
+const PORT = process.env.PORT || 5001;
 
-const startServer = (port) => {
-  try {
-    httpServer.listen(port, () => {
-      console.log(`Chat API + Socket.IO are running on http://localhost:${port}`);
-    });
-  } catch (err) {
-    if (err.code === 'EADDRINUSE') {
-      console.log(`Port ${port} is busy, trying ${port + 1}...`);
-      startServer(port + 1);
-    } else {
-      console.error('Server error:', err);
-    }
-  }
-};
+httpServer.listen(PORT, () => {
+  console.log(`🚀 Chat API + Socket.IO running on port ${PORT}`);
+  console.log(`🛡️  CORS enabled for:`, corsOrigins);
+});
 
-startServer(PORT);
+module.exports = { app, io };

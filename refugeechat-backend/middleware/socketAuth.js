@@ -1,16 +1,23 @@
-const { verifyToken } = require("./auth");
+const { verifyToken } = require("../auth");
 
 function extractSocketToken(handshake) {
-  if (handshake.auth && typeof handshake.auth.token === "string") {
+  // Check auth object first (Socket.IO v3+)
+  if (handshake.auth && handshake.auth.token) {
     return handshake.auth.token;
   }
 
-  const header = handshake.headers?.authorization || handshake.headers?.Authorization;
-  if (!header) return null;
+  // Check query parameters
+  if (handshake.query && handshake.query.token) {
+    return handshake.query.token;
+  }
 
-  const [scheme, value] = header.split(" ");
-  if (scheme === "Bearer" && value) {
-    return value.trim();
+  // Check Authorization header
+  const authHeader = handshake.headers.authorization || handshake.headers.Authorization;
+  if (authHeader) {
+    const [scheme, token] = authHeader.split(' ');
+    if (scheme === 'Bearer' && token) {
+      return token;
+    }
   }
 
   return null;
@@ -21,49 +28,54 @@ function socketAuthMiddleware(socket, next) {
     try {
       const token = extractSocketToken(socket.handshake);
 
-      // Development fallback when no token provided
-      if (!token && process.env.NODE_ENV === "development") {
-        console.warn("No token provided in development; using dev fallback");
-        const devUserId = process.env.DEV_USER_ID || "dev-user-socket";
-        socket.data = {
-          ...socket.data,
-          userId: devUserId,
-          sessionId: "dev-session",
-          claims: { 
-            sub: devUserId, 
-            sid: "dev-session", 
-            email: process.env.DEV_USER_EMAIL || "dev@example.com" 
-          }
-        };
-        return next();
-      }
-
+      // Development fallback - only in development mode
       if (!token) {
-        throw new Error("Authentication token is missing");
+        if (process.env.NODE_ENV === "development") {
+          console.warn("⚠️  No token provided in development; using dev fallback");
+          const devUserId = process.env.DEV_USER_ID || "dev-user-socket";
+          socket.data = {
+            userId: devUserId,
+            sessionId: "dev-session",
+            claims: { 
+              sub: devUserId, 
+              sid: "dev-session", 
+              email: process.env.DEV_USER_EMAIL || "dev@example.com" 
+            }
+          };
+          return next();
+        } else {
+          throw new Error("Authentication token is required");
+        }
       }
 
-      // Verify the token
+      if (!token || token === "null" || token === "undefined") {
+        throw new Error("Invalid authentication token");
+      }
+
+      // Verify the token with Clerk
       const claims = await verifyToken(token);
       
       if (!claims?.sub) {
-        throw new Error("Invalid token: missing subject claim");
+        throw new Error("Invalid token: missing user ID");
       }
 
       socket.data = {
-        ...socket.data,
         userId: claims.sub,
         sessionId: claims.sid,
         claims
       };
 
-      console.log(`Socket authenticated for user: ${claims.sub}`);
+      console.log(`✅ Socket authenticated for user: ${claims.sub}`);
       next();
     } catch (error) {
-      console.error("Socket auth error:", error.message);
-      const authError = new Error(error.message);
+      console.error("❌ Socket auth error:", error.message);
+      
+      // Provide more specific error information
+      const authError = new Error(`Authentication failed: ${error.message}`);
       authError.data = { 
         code: "UNAUTHORIZED",
-        message: error.message
+        message: error.message,
+        timestamp: new Date().toISOString()
       };
       next(authError);
     }
@@ -71,5 +83,6 @@ function socketAuthMiddleware(socket, next) {
 }
 
 module.exports = {
-  socketAuthMiddleware
+  socketAuthMiddleware,
+  extractSocketToken
 };
