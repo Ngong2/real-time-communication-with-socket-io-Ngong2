@@ -25,7 +25,28 @@ export default function App() {
         
         <main className="flex flex-1 flex-col">
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={
+              <>
+                <SignedOut>
+                  <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center px-4 text-center text-slate-200">
+                    <h2 className="text-3xl font-semibold text-white">
+                      Welcome to AREL TECH CHAT
+                    </h2>
+                    <p className="mt-3 text-base text-slate-00">
+                      Sign in to sync your Clerk profile and explore the static REST-based chat experience before we go live with Socket.IO.
+                    </p>
+                    <SignInButton mode="modal">
+                      <Button size="lg" className="mt-6">
+                        Sign in to continue
+                      </Button>
+                    </SignInButton>
+                  </div>
+                </SignedOut>
+                <SignedIn>
+                  <Navigate to="/dashboard" replace />
+                </SignedIn>
+              </>
+            } />
             <Route path="/about" element={<About />} />
             <Route
               path="/dashboard"
