@@ -42,12 +42,8 @@ const httpCorsOrigins = allowedOrigins.length
 const corsOptions = {
   origin: httpCorsOrigins,
   credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 };
-
-// Handle preflight requests for all routes
-app.options("*", cors(corsOptions));
 
 app.use(cors(corsOptions));
 
