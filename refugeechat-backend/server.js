@@ -46,7 +46,9 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
 };
 
-app.options('*', cors(corsOptions));
+// Handle preflight requests for all routes
+app.options("*", cors(corsOptions));
+
 app.use(cors(corsOptions));
 
 app.use(express.json({ limit: "1mb" }));
@@ -109,7 +111,7 @@ io.on("connection", (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 5000; 
+const PORT = process.env.PORT || 5001;  // Changed to 5001
 
 const startServer = (port) => {
   try {
