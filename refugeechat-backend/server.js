@@ -26,7 +26,7 @@ const io = new Server(httpServer, {
   cors: {
     origin: allowedOrigins.length
       ? allowedOrigins
-      : ["http://localhost:5173"],
+      : ["https://real-time-communication-with-socket-pink.vercel.app"],
     credentials: true
   }
 });
@@ -37,7 +37,7 @@ io.use(socketAuthMiddleware);
 
 const httpCorsOrigins = allowedOrigins.length
   ? allowedOrigins
-  : ["http://localhost:5173"];
+  : ["https://real-time-communication-with-socket-pink.vercel.app"];
 
 const corsOptions = {
   origin: httpCorsOrigins,

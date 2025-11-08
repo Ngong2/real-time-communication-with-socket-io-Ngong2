@@ -2,7 +2,7 @@
 
 A modern real-time chat application built with the MERN stack (MongoDB, Express.js, React, Node.js) and Socket.IO. This platform enables AREL students and developers to connect, share ideas, and collaborate in real-time.
 
-![AREL Tech Chat](screenshots/demo.gif)
+![AREL Tech Chat https://real-time-communication-with-socket-pink.vercel.app/)
 
 ## 🌟 Features
 
