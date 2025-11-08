@@ -42,9 +42,11 @@ const httpCorsOrigins = allowedOrigins.length
 const corsOptions = {
   origin: httpCorsOrigins,
   credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
 };
 
+app.options('*', cors(corsOptions));
 app.use(cors(corsOptions));
 
 app.use(express.json({ limit: "1mb" }));
@@ -107,7 +109,7 @@ io.on("connection", (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 5001;  // Changed to 5001
+const PORT = process.env.PORT || 5000; 
 
 const startServer = (port) => {
   try {
