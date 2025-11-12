@@ -48,6 +48,24 @@ const createAuthenticatedClient = (getToken) => {
     return config;
   });
 
+  // Response logger + useful error messages
+  instance.interceptors.response.use(
+    (res) => res,
+    (err) => {
+      try {
+        const status = err?.response?.status;
+        const url = err?.config?.url;
+        console.error(`API request failed: ${url} -> status=${status}`, err?.response?.data || err.message);
+        if (status === 401) {
+          console.warn("API returned 401 Unauthorized. This usually means the Clerk token is invalid or missing.");
+        }
+      } catch (e) {
+        console.error("Error processing API error:", e);
+      }
+      return Promise.reject(err);
+    }
+  );
+
   return instance;
 };
 

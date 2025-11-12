@@ -26,10 +26,17 @@ export function useSocket(getToken) {
           throw new Error("No authentication token available");
         }
 
-        console.log("🔌 Initializing socket connection...");
+        console.log("🔌 Initializing socket connection...", { SOCKET_URL });
+
         const socket = io(SOCKET_URL, {
           withCredentials: true,
+          // try websocket first, then polling
           transports: ["websocket", "polling"],
+          // tuning reconnection behavior for flaky networks / proxies
+          timeout: 20000, // 20s connect timeout
+          reconnection: true,
+          reconnectionAttempts: 10,
+          reconnectionDelay: 2000,
           auth: { token }
         });
 
@@ -47,9 +54,25 @@ export function useSocket(getToken) {
         });
 
         socket.on("connect_error", (error) => {
-          console.error("❌ Socket connection error:", error.message);
-          setSocketError(error.message);
+          // socket.io may provide an Error object or plain string
+          try {
+            console.error("❌ Socket connection error:", error && error.message ? error.message : error);
+            // some errors include additional data
+            if (error && error.data) console.error("Socket error data:", error.data);
+            setSocketError(error && error.message ? error.message : String(error));
+          } catch (e) {
+            console.error("Socket connect_error processing failed", e);
+            setSocketError(String(error));
+          }
           setIsConnected(false);
+        });
+
+        socket.on("reconnect_attempt", (attempt) => {
+          console.log(`🔁 Socket reconnect attempt ${attempt}`);
+        });
+
+        socket.on("reconnect_failed", () => {
+          console.warn("⚠️ Socket reconnect failed");
         });
 
       } catch (error) {
