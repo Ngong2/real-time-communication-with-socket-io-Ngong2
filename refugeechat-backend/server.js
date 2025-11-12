@@ -17,17 +17,46 @@ const httpServer = http.createServer(app);
 
 connectDB();
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || "")
+// --- CORS: dynamic origin handling and explicit preflight support ---
+const rawAllowedOrigins = (process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || "")
   .split(",")
-  .map(origin => origin.trim())
+  .map((origin) => origin.trim())
   .filter(Boolean);
 
+const defaultOrigins = [
+  "https://real-time-communication-with-socket-pink.vercel.app",
+  "http://localhost:5173"
+];
+
+const allowedOrigins = rawAllowedOrigins.length ? rawAllowedOrigins : defaultOrigins;
+
+// Helper to decide if origin is allowed
+function isOriginAllowed(origin) {
+  if (!origin) return true; // non-browser or same-origin
+  if (allowedOrigins.includes(origin)) return true;
+
+  // Allow all Vercel subdomains to support preview deployments
+  try {
+    const { hostname } = new URL(origin);
+    if (hostname.endsWith(".vercel.app")) return true;
+  } catch {
+    // ignore URL parse errors
+  }
+  return false;
+}
+
+// Socket.IO CORS
 const io = new Server(httpServer, {
   cors: {
-    origin: allowedOrigins.length
-      ? allowedOrigins
-      : ["https://real-time-communication-with-socket-pink.vercel.app", "http://localhost:5173"],
-    credentials: true
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) {
+        return callback(null, true);
+      }
+      console.warn(`Socket.IO CORS blocked origin: ${origin}`);
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+    methods: ["GET", "POST"]
   }
 });
 
@@ -35,17 +64,25 @@ const userPresence = new Map();
 
 io.use(socketAuthMiddleware);
 
-const httpCorsOrigins = allowedOrigins.length
-  ? allowedOrigins
-  : ["https://real-time-communication-with-socket-pink.vercel.app", "http://localhost:5173"];
-
+// HTTP CORS
 const corsOptions = {
-  origin: httpCorsOrigins,
+  origin: (origin, callback) => {
+    if (isOriginAllowed(origin)) {
+      return callback(null, true);
+    }
+    console.warn(`HTTP CORS blocked origin: ${origin}`);
+    return callback(new Error("Not allowed by CORS"));
+  },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  // IMPORTANT: allow custom headers used by the frontend (e.g., X-Request-Id)
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-Request-Id", "Accept"],
+  optionsSuccessStatus: 204
 };
 
 app.use(cors(corsOptions));
+// Explicitly handle preflight requests for all routes
+app.options("*", cors(corsOptions));
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
