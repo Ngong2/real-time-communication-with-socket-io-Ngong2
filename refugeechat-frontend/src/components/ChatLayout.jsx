@@ -3,6 +3,7 @@ import { useAuth } from "@clerk/clerk-react";
 import Sidebar from "./Sidebar";
 import ChatWindow from "./ChatWindow";
 import { createApiClient } from "../lib/api";
+import { useIsMobile } from "../hooks/use-mobile";
 
 export default function ChatLayout({
   currentUserId,
@@ -12,6 +13,7 @@ export default function ChatLayout({
 }) {
   const { getToken, isLoaded: authLoaded } = useAuth();
   const api = useMemo(() => createApiClient(getToken), [getToken]);
+  const isMobile = useIsMobile();
 
   const [conversations, setConversations] = useState([]);
   const [directory, setDirectory] = useState([]);
@@ -143,7 +145,6 @@ export default function ChatLayout({
     refreshDirectory
   ]);
 
-  // ... rest of your component code remains the same
   useEffect(() => {
     if (!activeConversationId) {
       setActiveConversation(null);
@@ -258,36 +259,76 @@ export default function ChatLayout({
   }
 
   return (
-    <div className="flex h-full gap-6">
-      <Sidebar
-        currentUserId={currentUserId}
-        currentDisplayName={currentName}
-        currentAvatar={currentAvatar}
-        conversations={conversations}
-        directory={directory}
-        isBootstrapping={isBootstrapping}
-        isLoadingConversations={isLoadingConversations}
-        onSelectConversation={handleSelectConversation}
-        onStartConversation={handleStartConversation}
-        onRefresh={refreshConversations}
-        error={error}
-        activeConversationId={activeConversationId}
-      />
+    <div className={isMobile ? "flex h-full gap-2" : "flex h-full gap-6"}>
+      {isMobile ? (
+        activeConversationId ? (
+          <ChatWindow
+            messagesApi={api.messages}
+            conversation={activeConversation}
+            conversationId={activeConversationId}
+            currentUser={{
+              id: currentUserId,
+              name: currentName,
+              avatar: currentAvatar
+            }}
+            onConversationSeen={handleConversationSeen}
+            onMessageSent={handleMessageSent}
+            isBootstrapping={isBootstrapping}
+            getToken={getToken}
+            isMobile={isMobile}
+          />
+        ) : (
+          <Sidebar
+            currentUserId={currentUserId}
+            currentDisplayName={currentName}
+            currentAvatar={currentAvatar}
+            conversations={conversations}
+            directory={directory}
+            isBootstrapping={isBootstrapping}
+            isLoadingConversations={isLoadingConversations}
+            onSelectConversation={handleSelectConversation}
+            onStartConversation={handleStartConversation}
+            onRefresh={refreshConversations}
+            error={error}
+            activeConversationId={activeConversationId}
+            isMobile={isMobile}
+          />
+        )
+      ) : (
+        <>
+          <Sidebar
+            currentUserId={currentUserId}
+            currentDisplayName={currentName}
+            currentAvatar={currentAvatar}
+            conversations={conversations}
+            directory={directory}
+            isBootstrapping={isBootstrapping}
+            isLoadingConversations={isLoadingConversations}
+            onSelectConversation={handleSelectConversation}
+            onStartConversation={handleStartConversation}
+            onRefresh={refreshConversations}
+            error={error}
+            activeConversationId={activeConversationId}
+            isMobile={isMobile}
+          />
 
-      <ChatWindow
-        messagesApi={api.messages}
-        conversation={activeConversation}
-        conversationId={activeConversationId}
-        currentUser={{
-          id: currentUserId,
-          name: currentName,
-          avatar: currentAvatar
-        }}
-        onConversationSeen={handleConversationSeen}
-        onMessageSent={handleMessageSent}
-        isBootstrapping={isBootstrapping}
-        getToken={getToken}
-      />
+          <ChatWindow
+            messagesApi={api.messages}
+            conversation={activeConversation}
+            conversationId={activeConversationId}
+            currentUser={{
+              id: currentUserId,
+              name: currentName,
+              avatar: currentAvatar
+            }}
+            onConversationSeen={handleConversationSeen}
+            onMessageSent={handleMessageSent}
+            isBootstrapping={isBootstrapping}
+            getToken={getToken}
+            isMobile={isMobile}
+          />
+        </>
+      )}
     </div>
   );
 }

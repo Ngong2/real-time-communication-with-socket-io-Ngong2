@@ -1,5 +1,6 @@
 import { Avatar } from "./ui/avatar";
 import { cn } from "../lib/utils";
+import { useIsMobile } from "../hooks/use-mobile";
 
 const timeFormatter = new Intl.DateTimeFormat(undefined, {
   hour: "numeric",
@@ -20,6 +21,7 @@ export default function MessageBubble({
   onAddReaction,
   availableReactions
 }) {
+  const isMobile = useIsMobile();
   const timestamp = message?.createdAt ? new Date(message.createdAt) : null;
   const statusLabel = statusLabelMap[message.status] || "Sent";
 
@@ -42,8 +44,10 @@ export default function MessageBubble({
 
       <div
         className={cn(
-          "flex max-w-xs md:max-w-xl flex-col gap-1",
-          isMine ? "items-end text-right" : "items-start text-left"
+          "flex flex-col gap-1",
+          isMine ? "items-end text-right" : "items-start text-left",
+          // Make bubbles wider on mobile for readability
+          isMobile ? "max-w-[85%]" : "max-w-xs md:max-w-xl"
         )}
       >
         <p className="text-[11px] uppercase tracking-wide text-[#5bc0be]">
@@ -114,7 +118,12 @@ export default function MessageBubble({
 
       {/* Reaction Picker on Hover */}
       {onAddReaction && (
-        <div className="absolute -bottom-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-[#0b132b] border border-[#5bc0be]/20 rounded-full px-2 py-1 shadow-lg">
+        <div
+          className={cn(
+            "absolute -bottom-2 transition-opacity duration-200 bg-[#0b132b] border border-[#5bc0be]/20 rounded-full px-2 py-1 shadow-lg",
+            isMobile ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          )}
+        >
           <div className="flex gap-1">
             {availableReactions?.slice(0, 5).map(({ emoji, label }) => (
               <button
