@@ -81,9 +81,8 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-// Explicitly handle preflight requests for all routes
-// REPLACE the invalid wildcard "*" with an Express v5 compatible pattern
-app.options("(.*)", cors(corsOptions));
+// Explicitly handle preflight requests for all routes using RegExp to avoid path-to-regexp errors
+app.options(/.*/, cors(corsOptions));
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
