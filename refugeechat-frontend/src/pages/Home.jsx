@@ -7,9 +7,9 @@ export default function Home() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[75vh] px-6 text-center text-slate-300">
-      <h1 className="text-4xl font-bold text-white mb-5">Welcome to AREL Tech Chat</h1>
+      <h1 className="text-4xl font-bold text-white mb-5">Welcome to AReL Tech Chat</h1>
       <p className="max-w-2xl text-slate-700">
-        A community-driven chat platform designed for AREL students and developers.  
+        A community-driven chat platform designed for AReL students and developers.  
         Connect, share ideas, and grow together in technology and innovation.
       </p>
 

@@ -14,7 +14,7 @@ export default function Navbar() {
           to="/" 
           className="text-xl font-bold bg-gradient-to-r from-[#5bc0be] to-[#6fffe9] bg-clip-text text-transparent hover:from-[#6fffe9] hover:to-[#5bc0be] transition-all duration-300"
         >
-          AReLTech Chat
+          AReL Tech Chat
         </Link>
 
         {/* Navigation Links */}
